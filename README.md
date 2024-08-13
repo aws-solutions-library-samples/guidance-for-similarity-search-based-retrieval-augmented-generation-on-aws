@@ -55,30 +55,30 @@ The following table provides a sample cost breakdown for deploying this Guidance
 
 ## Prerequisites
 
-### [Amazon Bedrock](https://aws.amazon.com/bedrock/) requires you to request access to its foundational models as a pre-requisite before you can start invoking the model using Bedrock APIs. Below we will configure [model access](https://docs.aws.amazon.com/bedrock/latest/userguide/model-access.html) in Amazon Bedrock in order to build and run generative AI applications. Amazon Bedrock provides a variety of foundation models from several providers such as AI21 Labs, Anthropic, Cohere, Meta, Stability AI, and Amazon.
+[Amazon Bedrock](https://aws.amazon.com/bedrock/) requires you to request access to its foundational models as a pre-requisite before you can start invoking the model using Bedrock APIs. Below we will configure [model access](https://docs.aws.amazon.com/bedrock/latest/userguide/model-access.html) in Amazon Bedrock in order to build and run generative AI applications. Amazon Bedrock provides a variety of foundation models from several providers such as AI21 Labs, Anthropic, Cohere, Meta, Stability AI, and Amazon.
 
-    #### Amazon Bedrock Setup Instructions
-    - In the [AWS Console](https://aws.amazon.com/console/), select the Region from which you want to access Amazon Bedrock.
-    - For this guidance , we will be using the `us-east-1` region.
-      ![](source/01_RetrievalAugmentedGeneration/01_QuestionAnswering_Bedrock_LLMs/static/Amazon_Bedrock_Region.png)
-    
-    - Search for Amazon Bedrock by typing in the search bar on the AWS console.
-      ![](source/01_RetrievalAugmentedGeneration/01_QuestionAnswering_Bedrock_LLMs/static/Bedrock_Console.png)
-    
-    - Expand the side menu with three horizontal lines (as shown below), select Model access and click on Enable specific models button.
-      ![](source/01_RetrievalAugmentedGeneration/01_QuestionAnswering_Bedrock_LLMs/static/Bedrock-Expand.png)
-      ![](source/01_RetrievalAugmentedGeneration/01_QuestionAnswering_Bedrock_LLMs/static/Bedrock_Model_Access.png)
-    
-    - For this guidance, we'll be using Anthropic's Claude 3 models as LLMs and Amazon Titan family of embedding models. Click Next in the bottom right corner to review and submit.
-      ![](source/01_RetrievalAugmentedGeneration/01_QuestionAnswering_Bedrock_LLMs/static/Bedrock_Check_Model_Access.png)
-      ![](source/01_RetrievalAugmentedGeneration/01_QuestionAnswering_Bedrock_LLMs/static/Bedrock_Submit_Model_Access.png)
-      
-    - You will be granted access to Amazon Titan models instantly. The Access status column will change to In progress for Anthropic Claude 3 momentarily. Keep reviewing the Access status column. You may need to refresh the page periodically. You should see Access granted shortly (wait time is typically 1-3 mins).
-      ![](source/01_RetrievalAugmentedGeneration/01_QuestionAnswering_Bedrock_LLMs/static/Bedrock_Model_Access_In_Progress.png)
-      ![](source/01_RetrievalAugmentedGeneration/01_QuestionAnswering_Bedrock_LLMs/static/Bedrock_Access_Granted.png)
-    
-    > [!Note]
-    > Now you have successfully configured Amazon Bedrock.
+#### Amazon Bedrock Setup Instructions
+- In the [AWS Console](https://aws.amazon.com/console/), select the Region from which you want to access Amazon Bedrock.
+- For this guidance , we will be using the `us-west-2` region.
+  ![](source/01_RetrievalAugmentedGeneration/01_QuestionAnswering_Bedrock_LLMs/static/Amazon_Bedrock_Region.png)
+
+- Search for Amazon Bedrock by typing in the search bar on the AWS console.
+  ![](source/01_RetrievalAugmentedGeneration/01_QuestionAnswering_Bedrock_LLMs/static/Bedrock_Console.png)
+
+- Expand the side menu with three horizontal lines (as shown below), select Model access and click on Enable specific models button.
+  ![](source/01_RetrievalAugmentedGeneration/01_QuestionAnswering_Bedrock_LLMs/static/Bedrock-Expand.png)
+  ![](source/01_RetrievalAugmentedGeneration/01_QuestionAnswering_Bedrock_LLMs/static/Bedrock_Model_Access.png)
+
+- For this guidance, we'll be using Anthropic's Claude 3 models as LLMs and Amazon Titan family of embedding models. Click Next in the bottom right corner to review and submit.
+  ![](source/01_RetrievalAugmentedGeneration/01_QuestionAnswering_Bedrock_LLMs/static/Bedrock_Check_Model_Access.png)
+  ![](source/01_RetrievalAugmentedGeneration/01_QuestionAnswering_Bedrock_LLMs/static/Bedrock_Submit_Model_Access.png)
+  
+- You will be granted access to Amazon Titan models instantly. The Access status column will change to In progress for Anthropic Claude 3 momentarily. Keep reviewing the Access status column. You may need to refresh the page periodically. You should see Access granted shortly (wait time is typically 1-3 mins).
+  ![](source/01_RetrievalAugmentedGeneration/01_QuestionAnswering_Bedrock_LLMs/static/Bedrock_Model_Access_In_Progress.png)
+  ![](source/01_RetrievalAugmentedGeneration/01_QuestionAnswering_Bedrock_LLMs/static/Bedrock_Access_Granted.png)
+
+> [!Note]
+> Now you have successfully configured Amazon Bedrock.
 
 ## Deployment Steps
 
