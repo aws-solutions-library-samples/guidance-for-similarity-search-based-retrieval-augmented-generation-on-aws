@@ -4,14 +4,12 @@
     - [Architecture](#architecture)
     - [Cost](#cost)
 2. [Prerequisites](#prerequisites)
-    - [Operating System](#operating-system)
 3. [Deployment Steps](#deployment-steps)
 4. [Running the Guidance](#running-the-guidance)
 5. [Next Steps](#next-steps)
 6. [Cleanup](#cleanup)
 7. [Notices](#notices)
-8. [Known Issues](#known-issues)
-9. [Authors](#authors)
+8. [Authors](#authors)
 
 ## Overview
 Amazon DocumentDB provides native vector search capability to perform similarity search.  In this guidance, we provide a step-by-step guide with all the building blocks for creating an enterprise ready RAG application such as a question answering(Q&A) system. We use a combination of different AWS services including [Amazon Bedrock](https://aws.amazon.com/bedrock/), an easy way to build and scale generative AI applications with foundation models. We use [Titan Text](https://aws.amazon.com/bedrock/titan/) for text embeddings and [Anthropic's Claude on Amazon Bedrock](https://aws.amazon.com/bedrock/claude/) as our LLM and Amazon DocumentDB as our vector database. We also demonstrate integration with open-source frameworks such as LlamaIndex for interfacing with all the components.
@@ -57,41 +55,77 @@ The following table provides a sample cost breakdown for deploying this Guidance
 
 ## Prerequisites
 
-1. [Amazon Bedrock](https://aws.amazon.com/bedrock/) requires you to request access to its foundational models as a pre-requisite before you can start invoking the model using Bedrock APIs.Below we will configure [model access](https://docs.aws.amazon.com/bedrock/latest/userguide/model-access.html) in Amazon Bedrock in order to build and run generative AI applications. Amazon Bedrock provides a variety of foundation models from several providers such as AI21 Labs, Anthropic, Cohere, Meta, Stability AI, and Amazon.
+### [Amazon Bedrock](https://aws.amazon.com/bedrock/) requires you to request access to its foundational models as a pre-requisite before you can start invoking the model using Bedrock APIs. Below we will configure [model access](https://docs.aws.amazon.com/bedrock/latest/userguide/model-access.html) in Amazon Bedrock in order to build and run generative AI applications. Amazon Bedrock provides a variety of foundation models from several providers such as AI21 Labs, Anthropic, Cohere, Meta, Stability AI, and Amazon.
 
-#### Amazon Bedrock Setup Instructions
-- In the [AWS Console](https://aws.amazon.com/console/), select the Region from which you want to access Amazon Bedrock.
-- For this guidance , we will be using the `us-west-2` region.
-  ![](source/01_RetrievalAugmentedGeneration/01_QuestionAnswering_Bedrock_LLMs/static/Amazon_Bedrock_Region.png)
+    #### Amazon Bedrock Setup Instructions
+    - In the [AWS Console](https://aws.amazon.com/console/), select the Region from which you want to access Amazon Bedrock.
+    - For this guidance , we will be using the `us-east-1` region.
+      ![](source/01_RetrievalAugmentedGeneration/01_QuestionAnswering_Bedrock_LLMs/static/Amazon_Bedrock_Region.png)
+    
+    - Search for Amazon Bedrock by typing in the search bar on the AWS console.
+      ![](source/01_RetrievalAugmentedGeneration/01_QuestionAnswering_Bedrock_LLMs/static/Bedrock_Console.png)
+    
+    - Expand the side menu with three horizontal lines (as shown below), select Model access and click on Enable specific models button.
+      ![](source/01_RetrievalAugmentedGeneration/01_QuestionAnswering_Bedrock_LLMs/static/Bedrock-Expand.png)
+      ![](source/01_RetrievalAugmentedGeneration/01_QuestionAnswering_Bedrock_LLMs/static/Bedrock_Model_Access.png)
+    
+    - For this guidance, we'll be using Anthropic's Claude 3 models as LLMs and Amazon Titan family of embedding models. Click Next in the bottom right corner to review and submit.
+      ![](source/01_RetrievalAugmentedGeneration/01_QuestionAnswering_Bedrock_LLMs/static/Bedrock_Check_Model_Access.png)
+      ![](source/01_RetrievalAugmentedGeneration/01_QuestionAnswering_Bedrock_LLMs/static/Bedrock_Submit_Model_Access.png)
+      
+    - You will be granted access to Amazon Titan models instantly. The Access status column will change to In progress for Anthropic Claude 3 momentarily. Keep reviewing the Access status column. You may need to refresh the page periodically. You should see Access granted shortly (wait time is typically 1-3 mins).
+      ![](source/01_RetrievalAugmentedGeneration/01_QuestionAnswering_Bedrock_LLMs/static/Bedrock_Model_Access_In_Progress.png)
+      ![](source/01_RetrievalAugmentedGeneration/01_QuestionAnswering_Bedrock_LLMs/static/Bedrock_Access_Granted.png)
+    
+    > [!Note]
+    > Now you have successfully configured Amazon Bedrock.
 
-- Search for Amazon Bedrock by typing in the search bar on the AWS console.
-  ![](source/01_RetrievalAugmentedGeneration/01_QuestionAnswering_Bedrock_LLMs/static/Bedrock_Console.png)
+## Deployment Steps
 
-- Expand the side menu with three horizontal lines (as shown below), select Model access and click on Enable specific models button.
-  ![](source/01_RetrievalAugmentedGeneration/01_QuestionAnswering_Bedrock_LLMs/static/Bedrock-Expand.png)
-  ![](source/01_RetrievalAugmentedGeneration/01_QuestionAnswering_Bedrock_LLMs/static/Bedrock_Model_Access.png)
+The cloudformation stack can be easily deployed using AWS Console or using AWS CLI and here are the steps for both.
 
-- For this guidance, we'll be using Anthropic's Claude 3 models as LLMs and Amazon Titan family of embedding models. Click Next in the bottom right corner to review and submit.
-  ![](source/01_RetrievalAugmentedGeneration/01_QuestionAnswering_Bedrock_LLMs/static/Bedrock_Check_Model_Access.png)
-  ![](source/01_RetrievalAugmentedGeneration/01_QuestionAnswering_Bedrock_LLMs/static/Bedrock_Submit_Model_Access.png)
-  
-- You will be granted access to Amazon Titan models instantly. The Access status column will change to In progress for Anthropic Claude 3 momentarily. Keep reviewing the Access status column. You may need to refresh the page periodically. You should see Access granted shortly (wait time is typically 1-3 mins).
-  ![](source/01_RetrievalAugmentedGeneration/01_QuestionAnswering_Bedrock_LLMs/static/Bedrock_Model_Access_In_Progress.png)
-  ![](source/01_RetrievalAugmentedGeneration/01_QuestionAnswering_Bedrock_LLMs/static/Bedrock_Access_Granted.png)
+### Using AWS Console
+Below are the steps to deploy the Cloudformation temolate using the AWS Console
+1. Download the [data-rag-aws-llama-DocumentDB.yaml](deployment/data-rag-aws-llama-DocumentDB.yaml)
+2. Navigate to AWS CloudFormation service on your AWS Console
+3. Choose ***Create stack*** and select **with new resources (standard)**
+4. On **Specify template** choose ***Upload a template file***
+5. Enter the **Stack name** for your CloudFormation stack.
+6. For **DocDBIdentifier**, enter a name of your Amazon DocumentDB cluster that will be created.
+7. For **DocDBPassword**, enter the administrator password for your Amazon DocumentDB cluster (minimum 8 characters).
+8. For **DocDBUsername**, enter the name of your administrator user in the Amazon DocumentDB cluster.
+9. For **ExistingCloud9Role**, choose **True** ***only when you have the AWS Identity and Access Management (IAM) role AWSCloud9SSMAccessRole*** created in your account.
+    - If you have used AWS Cloud9 before, you should already have an existing role. You can verify by going to the IAM console and searching for it on the Roles page. Stack creation will fail if the roles exists and you choose False.
+10. Choose **Next**.
+11. Select the check box in the **Capabilities** section to allow the stack to create an IAM role, then choose **Submit**.
 
-> [!Note]
-> Now you have successfully configured Amazon Bedrock.
+## Deployment Validation  
 
-2. We recommend using Mozilla Firefox as the preferred browser for running the AWS Cloud9 Console. If you don't already have it, you can download it from [Mozilla Firefox](https://www.mozilla.org/en-US/firefox/new/).
+Deployment validation can be done using AWS Console or AWS CLI
+
+### Using AWS Console
+
+1. Open CloudFormation console and verify the status of the template with your stack name provided earlier. The stack creation status should be **CREATE_COMPLETE**
+2. You will also find another linked stack that gets created for AWS Cloud9 starting with the stack name prefixed with ```aws-cloud9-ChangeStreamsCloud9-```
+3. If your deployment is sucessful, you should see an active Amazon DocumentDB cluster with the cluster name provided in the previous steps
+
+## Running the Guidance (required)
+1. Open the sagemaker
+2. Add the pythone notebook docdb-rag-llamaindex.ipynb(source/docdb-rag-llamaindex.ipynb)
 
 
+Next Steps
+You can explore with other RAG framework for Q&A system.
 
+## Cleanup 
+
+### Using AWS CLI
+1. Navigate to Cloudformation console, locate the stack with the name you provided while creating the stack
+2. **Select** the stack and choose **Delete**
 
 ## Notices
 
 *Customers are responsible for making their own independent assessment of the information in this Guidance. This Guidance: (a) is for informational purposes only, (b) represents AWS current product offerings and practices, which are subject to change without notice, and (c) does not create any commitments or assurances from AWS and its affiliates, suppliers or licensors. AWS products or services are provided “as is” without warranties, representations, or conditions of any kind, whether express or implied. AWS responsibilities and liabilities to its customers are controlled by AWS agreements, and this Guidance is not part of, nor does it modify, any agreement between AWS and its customers.*
-
-## Known Issues
 
  
 ### License
