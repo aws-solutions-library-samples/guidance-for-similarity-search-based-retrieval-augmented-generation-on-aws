@@ -116,7 +116,7 @@ You can explore with other RAG framework for Q&A system.
 
 ## Cleanup 
 
-### Using AWS CLI
+### Using AWS Console
 1. Navigate to Cloudformation console, locate the stack with the name you provided while creating the stack
 2. **Select** the stack and choose **Delete**
 
