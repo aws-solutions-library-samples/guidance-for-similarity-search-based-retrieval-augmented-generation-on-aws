@@ -4,6 +4,7 @@
     - [Architecture](#architecture)
     - [Cost](#cost)
 2. [Prerequisites](#prerequisites)
+   - [Operating System](#operating-system)
 3. [Deployment Steps](#deployment-steps)
 4. [Running the Guidance](#running-the-guidance)
 5. [Next Steps](#next-steps)
@@ -12,17 +13,18 @@
 8. [Authors](#authors)
 
 ## Overview
-Amazon DocumentDB provides native vector search capability to perform similarity search.  In this guidance, we provide a step-by-step guide with all the building blocks for creating an enterprise ready RAG application such as a question answering(Q&A) system. We use a combination of different AWS services including [Amazon Bedrock](https://aws.amazon.com/bedrock/), an easy way to build and scale generative AI applications with foundation models. We use [Titan Text](https://aws.amazon.com/bedrock/titan/) for text embeddings and [Anthropic's Claude on Amazon Bedrock](https://aws.amazon.com/bedrock/claude/) as our LLM and Amazon DocumentDB as our vector database. We also demonstrate integration with open-source frameworks such as LlamaIndex for interfacing with all the components.
+
+Amazon DocumentDB offers native vector search capabilities, enabling you to perform similarity searches with ease. In this guidance, we provide a step-by-step walkthrough that covers all the essential building blocks required to create an enterprise-ready Retrieval Augmented Generation (RAG) application, such as a question-answering (Q&A) system. Our approach leverages a combination of various AWS services, including [Amazon Bedrock](https://aws.amazon.com/bedrock/), an easy way to build and scale generative AI applications with foundation models. We utilize [Titan Text](https://aws.amazon.com/bedrock/titan/) for text embeddings and [Anthropic's Claude ](https://aws.amazon.com/bedrock/claude/) on Amazon Bedrock as our Large Language Model (LLM), while [Amazon DocumentDB (with MongoDB compatibility)](https://aws.amazon.com/documentdb/) serves as our vector database. Additionally, we demonstrate the integration with open-source RAG framework like [LlamaIndex](https://www.llamaindex.ai/), facilitating seamless interfacing with all the components involved.
 
 ### Architecture
 
-This architecture diagram shows how to handle user queries to provide domain-specific responses effectively. It enhances a Foundation Model on Amazon Bedrock using a RAG approach, leveraging Amazon DocumentDB vector search and LlamaIndex to retrieve relevant data.
+The  architecture diagram outlines an approach to effectively handle user queries and provide responses. It uses a foundation model available on Amazon Bedrock by employing a Retrieval Augmented Generation (RAG) technique. This approach leverages the vector search capabilities of Amazon DocumentDB and the LlamaIndex framework to retrieve relevant data, thereby enhancing the model's ability to generate contextually appropriate responses.
 
 ![Architecture](assets/Arch.PNG)
 
 ### How It Works
 
-The application follows these steps to provide responses to your questions:
+The Q&A application follows these steps to provide responses to your questions:
 
 1. The new external data, which lies outside of the LLM's original training data, can come from various sources such as APIs, databases, or document repositories.
 2. Data preprocessing to remove inconsistencies and errors, splitting large documents into manageable sections, and chunking the text into smaller, coherent chunks for easier processing. 
@@ -55,7 +57,7 @@ The following table provides a sample cost breakdown for deploying this Guidance
 
 ## Prerequisites
 
-[Amazon Bedrock](https://aws.amazon.com/bedrock/) requires you to request access to its foundational models as a pre-requisite before you can start invoking the model using Bedrock APIs. Below we will configure [model access](https://docs.aws.amazon.com/bedrock/latest/userguide/model-access.html) in Amazon Bedrock in order to build and run generative AI applications. Amazon Bedrock provides a variety of foundation models from several providers such as AI21 Labs, Anthropic, Cohere, Meta, Stability AI, and Amazon.
+1. To utilize [Amazon Bedrock's](https://aws.amazon.com/bedrock/) foundational models, you must first request access to them. This step is a prerequisite before you can start using the Amazon Bedrock APIs to invoke the models. In the following steps, we will configure [model access](https://docs.aws.amazon.com/bedrock/latest/userguide/model-access.html) in Amazon Bedrock, enabling you to build and run generative AI applications. Amazon Bedrock offers a diverse range of foundation models from various providers, including AI21 Labs, Anthropic, Cohere, Meta, Stability AI, and Amazon itself.
 
 #### Amazon Bedrock Setup Instructions
 - In the [AWS Console](https://aws.amazon.com/console/), select the Region from which you want to access Amazon Bedrock.
@@ -80,9 +82,19 @@ The following table provides a sample cost breakdown for deploying this Guidance
 > [!Note]
 > Now you have successfully configured Amazon Bedrock.
 
+2. To deploy this guidance, ensure that the user has permissions to create, list, and modify resources
+   - A VPC and the required networking components
+   - Amazon DocumentDB
+   - Amazon SageMaker
+   - AWS Secrets Manager
+
+### Operating System 
+
+These deployment instructions are optimized to best work on Amazon Linux 2 AMI or Mac OS.  Deployment in another OS may require additional steps.
+
 ## Deployment Steps
 
-The cloudformation stack can be easily deployed using AWS Console and here are the steps for both.
+The cloudformation stack can be easily deployed using AWS Console or using AWS CLI and here are the steps for both.
 
 ### Using AWS Console
 Below are the steps to deploy the Cloudformation temolate using the AWS Console
@@ -96,6 +108,20 @@ Below are the steps to deploy the Cloudformation temolate using the AWS Console
 8. Choose **Next**.
 9. Select the check box in the **Capabilities** section to allow the stack to create an IAM role, then choose **Submit**.
 
+### Using AWS CLI
+
+1. Clone the repo using command
+ 
+   ```gh repo clone aws-solutions-library-samples/guidance-for-similarity-search-based-retrieval-augmented-generation-on-aws```
+   
+3. Change directory  to the deplpoyment folder
+
+   ```cd guidance-for-similarity-search-based-retrieval-augmented-generation-on-aws/deployment```
+   
+4. Create the stack, here is an example command to deploy the stack
+
+   ``` aws cloudformation create-stack --template-body file://data-rag-aws-llama-DocumentDB.yaml --stack-name <StackName> --parameters  ParameterKey=DBUsername,ParameterValue=<DocumentDB_Username> ParameterKey=DBPassword,ParameterValue=<DBPassword_Password>  --capabilities <CAPABILITY_NAMED_IAM> ``` 
+
 ## Deployment Validation  
 
 Deployment validation can be done using AWS Console or AWS CLI
@@ -103,22 +129,37 @@ Deployment validation can be done using AWS Console or AWS CLI
 ### Using AWS Console
 
 1. Open CloudFormation console and verify the status of the template with your stack name provided earlier. The stack creation status should be **CREATE_COMPLETE**
-2. You will also find another linked stack that gets created for AWS Cloud9 starting with the stack name prefixed with ```aws-cloud9-ChangeStreamsCloud9-```
-3. If your deployment is sucessful, you should see an active Amazon DocumentDB cluster running in your account.
-   
-## Running the Guidance (required)
-1. Open the Amazon Sagemaker
-2. Add the pythone notebook docdb-rag-llamaindex.ipynb (source/docdb-rag-llamaindex.ipynb)
+2. If your deployment is sucessful, you should see an active Amazon DocumentDB cluster and Sagemaker running in your account. You can locate the DocumentDB Cluster Endpoint and Sagemaker Notebook URL from outputs tab of Stack.
 
+### Using AWS CLI
 
-Next Steps
-You can explore with other RAG framework for Q&A system.
+1. Open CloudFormation console and verify the status of the template with the name starting with your stack name.
+2. If deployment is successful, you should see an active Amazon DocumentDB cluster and Sagemaker instance running in your account.
+3. Run the following CLI command to validate the deployment: ```aws cloudformation describe <stack name>```
+  
+## Running the Guidance
+
+1. Locate and open  Amazon Sagemake Notebook URL form Cloudformation outputs tab.
+2. Download IPython notebook [docdb-rag-llamaindex.ipynb](source/docdb-rag-llamaindex.ipynb) and upload to sagemaker instance.
+3. Download the sample dataset [Q1-2024-result-transcript.pdf](source/Q1-2024-result-transcript.pdf)  
+4. Open the iPython notebook and create sample-datasets folder and upload the sample dataset.
+5. Update the DocumentDB Cluster Endpoint , username and password in notebook.
+6. Execute the IPhython notebook step by step. 
+
+## Next Steps
+
+You can explore additional sample datasets as well as other Retrieval-Augmented Generation (RAG) frameworks for developing Question and Answer systems. Furthermore, you can experiment with varying the chunk size , LLM hyperparameters to fine-tune the responses generated by the Large Language Model (LLM).
 
 ## Cleanup 
 
 ### Using AWS Console
 1. Navigate to Cloudformation console, locate the stack with the name you provided while creating the stack
 2. **Select** the stack and choose **Delete**
+
+### Using AWS CLI
+To delete the stack run the following command (replace the stack-name)
+
+``` aws cloudformation delete-stack  --stack-name <StackName> ```
 
 ## Notices
 
