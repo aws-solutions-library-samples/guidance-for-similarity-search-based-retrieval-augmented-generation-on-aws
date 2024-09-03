@@ -1,0 +1,320 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Template to provision DocumentDB cluster and SageMaker Notebook for RAG/semantic search solution
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Required Parameters
+        Parameters:
+          - DBUsername
+          - DBPassword
+          - KMSKey
+    ParameterLabels:
+      DBUsername:
+        default: DB cluster username
+      DBPassword:
+        default: DB cluster password
+      
+Parameters:
+  DBUsername:
+    AllowedPattern: '^[a-zA-Z0-9]+$'
+    Default: master
+    Description: User name for the account that will be added to the DB cluster.
+    MaxLength: '25'
+    MinLength: '5'
+    Type: String
+  DBPassword:
+    AllowedPattern: '(?=^.{8,32}$)((?=.*\d)(?=.*[A-Z])(?=.*[a-z])|(?=.*\d)(?=.*[^A-Za-z0-9])(?=.*[a-z])|(?=.*[^A-Za-z0-9])(?=.*[A-Z])(?=.*[a-z])|(?=.*\d)(?=.*[A-Z])(?=.*[^A-Za-z0-9]))^.*'
+    Description: Password for the account named above. Must be at least 8 characters containing letters, numbers and symbols
+    MaxLength: '32'
+    MinLength: '8'
+    NoEcho: 'true'
+    Type: String
+  
+
+Mappings:
+  SubnetConfig:
+    VPC:
+      CIDR: '10.30.0.0/16'
+    PublicOne:
+      CIDR: '10.30.0.0/24'
+    PrivateOne:
+      CIDR: '10.30.100.0/24'
+    PrivateTwo:
+      CIDR: '10.30.101.0/24'
+    PrivateThree:
+      CIDR: '10.30.102.0/24'
+
+Resources:
+
+# Networking
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      CidrBlock: !FindInMap ['SubnetConfig', 'VPC', 'CIDR']
+      
+  PublicSubnetOne:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone:
+         Fn::Select:
+         - 0
+         - Fn::GetAZs: {Ref: 'AWS::Region'}
+      VpcId: !Ref VPC
+      CidrBlock: !FindInMap ['SubnetConfig', 'PublicOne', 'CIDR']
+
+  PrivateSubnetOne:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone:
+         Fn::Select:
+         - 0
+         - Fn::GetAZs: {Ref: 'AWS::Region'}
+      VpcId: !Ref VPC
+      CidrBlock: !FindInMap ['SubnetConfig', 'PrivateOne', 'CIDR']
+  PrivateSubnetTwo:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone:
+         Fn::Select:
+         - 1
+         - Fn::GetAZs: {Ref: 'AWS::Region'}
+      VpcId: !Ref VPC
+      CidrBlock: !FindInMap ['SubnetConfig', 'PrivateTwo', 'CIDR']
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-igw
+  GatewayAttachement:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: GatewayAttachement
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+  PublicSubnetOneRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetOne
+      RouteTableId: !Ref PublicRouteTable
+
+  DocumentDBSubnetGroup:
+    Type: AWS::DocDB::DBSubnetGroup
+    Properties: 
+      DBSubnetGroupDescription: Subnet Group for DocumentDB
+      DBSubnetGroupName: !Sub ${AWS::StackName}-SG-DocumentDB
+      SubnetIds: 
+         - !Ref PrivateSubnetOne
+         - !Ref PrivateSubnetTwo
+         
+  DBSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub DBSecret-${AWS::StackName}
+      Description: DB username and password
+      SecretString: !Sub '{ "username" : "${DBUsername}", "password" : "${DBPassword}" }'
+
+  CodeRepository:
+    Type: AWS::SageMaker::CodeRepository
+    Properties:
+      GitConfig:
+        RepositoryUrl: https://github.com/aws-solutions-library-samples/guidance-for-similarity-search-based-retrieval-augmented-generation-on-aws
+
+  NotebookInstance:
+    Type: AWS::SageMaker::NotebookInstance
+    Properties:
+      NotebookInstanceName: data-foundation-genai-nb
+      InstanceType: ml.t3.large
+      RoleArn: !GetAtt NBRole.Arn
+      DirectInternetAccess: Enabled
+      SubnetId: !Ref PublicSubnetOne
+      SecurityGroupIds: 
+        - !Ref NotebookSecurityGroup
+      VolumeSizeInGB : 200
+  
+  SecretManagerPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          -
+            Sid: GetSecretValue
+            Effect: Allow
+            Action:
+              - secretsmanager:GetSecretValue
+            Resource: !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:*'  
+  NBRole:
+    Type: AWS::IAM::Role
+    Description: SageMaker notebook instance role granting read access to Secrets Manager
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+              - sagemaker.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'      
+      Path: /
+      ManagedPolicyArns:
+        - !Ref SecretManagerPolicy
+        - !Sub 'arn:aws:iam::aws:policy/AmazonBedrockFullAccess'
+    
+      
+  FlowRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+              - vpc-flow-logs.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Description: SageMaker notebook instance role granting read access to Secrets Manager
+
+  DocumentDBCluster:
+    Type: "AWS::DocDB::DBCluster"
+    DeletionPolicy: Delete
+    Properties:
+      DBClusterIdentifier: !Sub ${AWS::StackName}-genai-docdb-cluster
+      MasterUsername: !Ref DBUsername
+      MasterUserPassword: !Ref DBPassword
+      DBSubnetGroupName : !Ref DocumentDBSubnetGroup
+      EngineVersion: 5.0.0
+      VpcSecurityGroupIds: 
+        - Fn::GetAtt:
+            - DocumentDBSecurityGroup
+            - GroupId
+    DependsOn: DocumentDBSecurityGroup
+
+  DocumentDBInstance:
+    Type: "AWS::DocDB::DBInstance"
+    Properties:
+      DBClusterIdentifier: !Ref DocumentDBCluster
+      DBInstanceIdentifier: !Sub ${AWS::StackName}-genai-docdb-instance1
+      DBInstanceClass: 'db.r6g.2xlarge'
+    DependsOn: DocumentDBCluster  
+
+  # Notebook Security Group
+  NotebookSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties: 
+      GroupDescription: Sagemaker notebook Security Group
+      VpcId: !Ref VPC
+      
+  # DocumentDB Security Group
+  DocumentDBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties: 
+      GroupDescription: Amazon DocumentDB Security Group
+      VpcId: !Ref VPC
+
+
+  
+  InboundRule:  
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:   
+      IpProtocol: tcp
+      Description: String
+      FromPort: 27017
+      ToPort: 27017
+      SourceSecurityGroupId:
+        Fn::GetAtt:
+          - NotebookSecurityGroup
+          - GroupId
+      GroupId:
+        Fn::GetAtt:
+          - DocumentDBSecurityGroup
+          - GroupId
+  
+  OutboundRule1:
+   Type: AWS::EC2::SecurityGroupEgress
+   Properties:
+     Description: String
+     IpProtocol: tcp
+     FromPort: 27017
+     ToPort: 27017
+     DestinationSecurityGroupId:
+       Fn::GetAtt:
+        - NotebookSecurityGroup
+        - GroupId
+     GroupId:
+       Fn::GetAtt:
+        - DocumentDBSecurityGroup
+        - GroupId      
+  OutboundRule2:
+   Type: AWS::EC2::SecurityGroupEgress
+   Properties:
+     Description: String
+     IpProtocol: tcp
+     FromPort: 27017
+     ToPort: 27017
+     DestinationSecurityGroupId:
+       Fn::GetAtt:
+        - DocumentDBSecurityGroup
+        - GroupId
+     GroupId:
+       Fn::GetAtt:
+        - NotebookSecurityGroup
+        - GroupId
+  MyFlowLog:
+   Type: AWS::EC2::FlowLog
+   Properties:
+     DeliverLogsPermissionArn: !GetAtt FlowRole.Arn
+     LogGroupName: FlowLogsGroup
+     ResourceId: !Ref VPC
+     ResourceType: VPC
+     TrafficType: ALL
+
+Outputs:
+        
+  DocumentDBClusterEndpoint:
+    Description: DocumentDB Cluster Endpoint
+    Value: !GetAtt DocumentDBCluster.Endpoint
+
+  Region:
+    Description: Deployed Region
+    Value: !Ref AWS::Region
+
+
+  SageMakerNotebookURL:
+    Description: SageMaker Notebook Instance
+    Value: !Join
+      - ''
+      - - 'https://console.aws.amazon.com/sagemaker/home?region='
+        - !Ref AWS::Region
+        - '#/notebook-instances/openNotebook/'
+        - !GetAtt NotebookInstance.NotebookInstanceName
+        - '?view=classic'
+
+  DBSecret:
+    Description: Name of the DB secret in Secrets Manager
+    Value: !Sub DBSecret-${AWS::StackName}
+
+  NotebookRole:
+    Description: Sagemaker notebook instance role
+    Value: !Ref NBRole
+
+  NotebookRoleArn:
+    Description: Sagemaker Notebook instance role ARN
+    Value: !GetAtt NBRole.Arn
