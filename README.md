@@ -35,7 +35,7 @@ The Q&A application follows these steps to provide responses to your questions:
 7. Notebook fetches credentials from AWS Secrets Manager to connect to Amazon DocumentDB.
 8. The user’s question is transformed into a vector embedding in notebook using the same embedding model that was used during data ingestion workflow. 
 9. Notebook passes the query to LlamaIndex query engine. LlamaIndex is a data orchestration tool that helps with data indexing and querying. LlamaIndex performs a similarity search in the DocumentDB collection using the query embedding. The search retrieves the most relevant documents based on their proximity to the query vector.
-10. TLlamaIndex query engine augments this retrieved information, along with the user's question as a prompt to the LLM model to generate more accurate and informed responses.
+10. LlamaIndex query engine augments this retrieved information, along with the user's question as a prompt to the LLM model to generate more accurate and informed responses.
 
 ### Cost
 
