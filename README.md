@@ -26,18 +26,16 @@ The  architecture diagram outlines an approach to effectively handle user querie
 
 The Q&A application follows these steps to provide responses to your questions:
 
-1. The new external data, which lies outside of the LLM's original training data, can come from various sources such as APIs, databases, or document repositories.
-2. Data preprocessing to remove inconsistencies and errors, splitting large documents into manageable sections, and chunking the text into smaller, coherent chunks for easier processing. 
-3. Generate text embeddings for relevant data using the Titan text embedding models on Amazon Bedrock.
+1. The Jupyter notebook loads enterprise or external data which lies outside of the large language model’s (LLM) training data to augment the trained model. It can come from various sources including APIs, databases, or document repositories.
+2. The notebook preprocess data by removing inconsistencies and errors, splitting large documents into manageable sections, and chunking the text into smaller, coherent pieces for easier processing. 
+3. Notebook generates text embeddings for relevant data using the Titan text embedding models on Amazon Bedrock.
 4. Notebook fetches credentials from AWS Secrets Manager to connect to Amazon DocumentDB
-5. Create vector search index and load the generated text embeddings along with other relevant information into a DocumentDB collection.
-6. User submits a query for finding relevant answers and system receives a natural language question from the user
-7. The user’s question is transformed into a vector embedding using the same embedding model on Amazon Bedrock that was used during data ingestion workflow.
-8. Fetches credentials from AWS Secrets Manager to connect to Amazon DocumentDB
-9. Perform a similarity search in the Amazon DocumentDB collection using the query embedding. The search retrieves the most relevant documents or document segments based on their proximity to the query vector in the embedding space
-10. The user query and the retrieved relevant information are provided to the LLM, which utilizes both the new data and its training knowledge to generate more accurate responses
-
-Step 7-10 can be simplified by using LlamaIndex - an opensource orchestration framework for RAG . LlamaIndex works as query engine and  enables the use of natural language to retrieve relevant contextually appropriate information from a vector search index in Amazon DocumentDB. This retrieved information, along with the user's question, is then provided to the LLM model to generate more accurate and informed responses.
+5. Notebook creates a vector search index in Amazon DocumentDB and uses LlamaIndex to load the generated text embeddings along with other relevant information into a DocumentDB collection.
+6. User submits a natural language query for finding relevant answers to Jupyter notebook.
+7. Notebook fetches credentials from AWS Secrets Manager to connect to Amazon DocumentDB.
+8. The user’s question is transformed into a vector embedding in notebook using the same embedding model that was used during data ingestion workflow. 
+9. Notebook passes the query to LlamaIndex query engine. LlamaIndex is a data orchestration tool that helps with data indexing and querying. LlamaIndex performs a similarity search in the DocumentDB collection using the query embedding. The search retrieves the most relevant documents based on their proximity to the query vector.
+10. TLlamaIndex query engine augments this retrieved information, along with the user's question as a prompt to the LLM model to generate more accurate and informed responses.
 
 ### Cost
 
