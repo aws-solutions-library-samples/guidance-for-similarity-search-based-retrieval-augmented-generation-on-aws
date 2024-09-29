@@ -137,15 +137,15 @@ Deployment validation can be done using AWS Console or AWS CLI
   
 ## Running the Guidance
 
-1. Capture the  Amazon DocumentDB Cluster endpoint , region name ,secret name form Cloudformation outputs tab.
+1. Capture the  Amazon DocumentDB cluster endpoint,region name,secret name form Cloudformation outputs tab.
 2. Locate and open  Amazon Sagemake Notebook URL form Cloudformation outputs tab.
 3. Download IPython notebook [data-rag-aws-llama-docdb.ipynb](source/data-rag-aws-llama-docdb.ipynb)
-4. Click on the upload on Notebook instance page and upload the IPhython notbook which you downloaded in previos step. 
+4. Click on the upload on Notebook instance page and upload the IPython notbook which you downloaded in previos step. 
 5. Download the Q3 earnings call [transcript](source/Q3-2024-result-transcript.pdf) of AnyCompany.
 6. Now upload the sample transcript on Notebook instance page same as step (4) above
-7. Open the IPhython notebook  
-8. Update the DocumentDB Cluster Endpoint , region name ,secret name on IPhython notebook which you capatured in step (1)
-9. Execute the IPhython notebook step by step. 
+7. Open the IPython notebook  
+8. Update the DocumentDB cluster endpoint,region name,secret name on IPython notebook which you captured in step (1)
+9. Execute the IPython notebook step by step. 
 
 ## Next Steps
 
