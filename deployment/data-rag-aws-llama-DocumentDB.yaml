@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: Template to provision DocumentDB cluster and SageMaker Notebook for RAG/semantic search solution
+Description: Template to provision DocumentDB cluster and Webapp on EC2 instance for RAG/semantic search solution
 
 Metadata:
   AWS::CloudFormation::Interface:
@@ -31,7 +31,9 @@ Parameters:
     MinLength: '8'
     NoEcho: 'true'
     Type: String
-  
+  LatestAmiId:
+    Type: "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>"
+    Default: "/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2"
 
 Mappings:
   SubnetConfig:
@@ -124,29 +126,12 @@ Resources:
          
   DBSecret:
     Type: AWS::SecretsManager::Secret
+    DependsOn: DocumentDBCluster
     Properties:
       Name: !Sub DBSecret-${AWS::StackName}
       Description: DB username and password
-      SecretString: !Sub '{ "username" : "${DBUsername}", "password" : "${DBPassword}" }'
+      SecretString: !Sub '{ "username" : "${DBUsername}", "password" : "${DBPassword}", "host" : "${DocumentDBCluster.Endpoint}", "port" : "27017" }'
 
-  CodeRepository:
-    Type: AWS::SageMaker::CodeRepository
-    Properties:
-      GitConfig:
-        RepositoryUrl: https://github.com/aws-solutions-library-samples/guidance-for-similarity-search-based-retrieval-augmented-generation-on-aws
-
-  NotebookInstance:
-    Type: AWS::SageMaker::NotebookInstance
-    Properties:
-      NotebookInstanceName: data-foundation-genai-nb
-      InstanceType: ml.t3.large
-      RoleArn: !GetAtt NBRole.Arn
-      DirectInternetAccess: Enabled
-      SubnetId: !Ref PublicSubnetOne
-      SecurityGroupIds: 
-        - !Ref NotebookSecurityGroup
-      VolumeSizeInGB : 200
-  
   SecretManagerPolicy:
     Type: AWS::IAM::ManagedPolicy
     Properties:
@@ -158,10 +143,13 @@ Resources:
             Effect: Allow
             Action:
               - secretsmanager:GetSecretValue
+              - secretsmanager:ListSecrets
             Resource: !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:*'  
-  NBRole:
+  
+  
+  EC2InstanceRole:
     Type: AWS::IAM::Role
-    Description: SageMaker notebook instance role granting read access to Secrets Manager
+    Description: EC2 instance role granting read access to Secrets Manager and Bedrock
     Properties:
       AssumeRolePolicyDocument:
         Version: 2012-10-17
@@ -169,29 +157,307 @@ Resources:
           - Effect: Allow
             Principal:
               Service:
-              - sagemaker.amazonaws.com
+              - ec2.amazonaws.com
             Action:
               - 'sts:AssumeRole'      
       Path: /
       ManagedPolicyArns:
         - !Ref SecretManagerPolicy
         - !Sub 'arn:aws:iam::aws:policy/AmazonBedrockFullAccess'
-    
-      
-  FlowRole:
-    Type: AWS::IAM::Role
+        - !Sub 'arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore'
+  
+  EC2InstanceProfile:
+    DependsOn: EC2InstanceRole
+    Type: AWS::IAM::InstanceProfile
     Properties:
-      AssumeRolePolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service:
-              - vpc-flow-logs.amazonaws.com
-            Action:
-              - 'sts:AssumeRole'
-      Description: SageMaker notebook instance role granting read access to Secrets Manager
+      Path: /
+      Roles:
+        - !Ref EC2InstanceRole
+  
+  EC2HostInstance:
+    Type: AWS::EC2::Instance
+    DependsOn:
+      - EC2SecurityGroup
+      - DocumentDBSecurityGroup
+    Metadata:
+      AWS::CloudFormation::Init:
+        config:
+          packages:
+            yum:
+              git: []
+              gcc: []
+    Properties:
+      ImageId: !Ref "LatestAmiId"
+      InstanceType: m5.large
+      IamInstanceProfile: !Ref EC2InstanceProfile
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: "true"
+          DeviceIndex: "0"
+          GroupSet:
+            - Ref: EC2SecurityGroup
+            - Ref: DocumentDBSecurityGroup
+          SubnetId:
+            Ref: PublicSubnetOne
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          
+          function update_yum {
+            echo "updating yum..."
+            sudo yum -q -y update
+          }
+          
+          function setup_python {
+            amazon-linux-extras install -y python3.8 -y
+            rm -f /usr/bin/python3
+            ln -s /usr/bin/python3.8 /usr/bin/python3
+          }
 
+          function install_python_dependency {
+            echo "installing dependency ..."
+            pip3 install pymongo boto3 
+            pip3 install llama_index.core
+            pip3 install llama-index llama_index.vector_stores.awsdocdb
+            pip3 install llama-index-embeddings-bedrock 
+            pip3 install llama_index.llms.bedrock
+            pip3 install streamlit pdfplumber transformers
+          }
+          
+          function get_tls_certificate {
+            
+            
+            mkdir -p /home/ssm-user
+            
+            # Install necessary packages
+            sudo yum install -y wget
+  
+            # Download the RDS CA bundle to connect securely to DocumentDB
+            wget https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem -O /home/ssm-user/global-bundle.pem
+
+          }
+          function create_ssmuser {
+            
+            sudo groupadd ssm-user
+            sudo adduser -g ssm-user ssm-user
+          }
+          
+          function write_app_file {
+          # Write a Python script to /home/ssm-user/rag-llama-DocDB.py
+          cat <<EOF > /home/ssm-user/rag-llama-DocDB.py
+          #!/usr/bin/env python3
+          import streamlit as st
+          import boto3
+          from pymongo import MongoClient
+          from transformers import pipeline
+          from llama_index.core import Document
+          from llama_index.llms.bedrock import Bedrock
+          from llama_index.embeddings.bedrock import BedrockEmbedding
+          from llama_index.core import SimpleDirectoryReader
+          from llama_index.core.node_parser import SentenceSplitter
+          from llama_index.vector_stores.awsdocdb import AWSDocDbVectorStore
+          from llama_index.core import SimpleDirectoryReader, VectorStoreIndex
+          from llama_index.core.settings import Settings
+          from io import BytesIO
+          import pdfplumber
+          import os
+          import base64
+          import json
+          from botocore.exceptions import ClientError
+          
+          #Setup Global Variables - Amazon DocumentDB Cluster endpoint , region name ,secret name
+          #You can get these details from environment variables as following
+          
+          region_name = "${AWS::Region}"
+          secret_name = "DBSecret-${AWS::StackName}"
+          
+          #Creating bedrock runtime
+          def setup_bedrock_client():
+              return boto3.client(service_name='bedrock-runtime', region_name=region_name)
+          
+          # Get secret from secrets manager     
+          def get_secret():
+              """
+              Retrieve secret from AWS Secrets Manager.
+              """
+              # Create a Secrets Manager client
+              session = boto3.session.Session()
+              client = session.client(service_name="secretsmanager", region_name=region_name)
+              
+              try:
+                  get_secret_value_response = client.get_secret_value(SecretId=secret_name)
+                  # Secrets Manager returns a JSON string with credentials
+                  secret = json.loads(get_secret_value_response['SecretString'])
+                  return secret
+              except Exception as e:
+                  print(f"Error retrieving secret: {e}")
+                  return None
+                  
+          # Setup for AWS and DocumentDB
+          def setup_documentdb():
+              secret = get_secret()
+              # Retrieve the necessary values from the secret
+              username = secret['username']
+              password = secret['password']
+              host = secret['host']
+              port = secret['port']
+              
+              # Create a connection URI
+              docdb_cluster_uri = f"mongodb://{username}:{password}@{host}:{port}/?tls=true&tlsCAFile=global-bundle.pem&replicaSet=rs0&readPreference=secondaryPreferred&retryWrites=false"
+              
+              # Connect to DocumentDB
+              return MongoClient(docdb_cluster_uri)
+              
+         
+          
+          # Initialize the clients
+          bedrock_runtime = setup_bedrock_client()
+          documentdb_client = setup_documentdb()
+          
+          #Defining embedding model - amazon.titan-embed-g1-text-02
+          embed_model=BedrockEmbedding(model="amazon.titan-embed-g1-text-02", client=bedrock_runtime)
+          
+          #Defining LLM model - anthropic.claude-instant-v1
+          claude = Bedrock(model="anthropic.claude-instant-v1",client=bedrock_runtime)
+          
+          #Settings is a simple singleton object that lives throughout your application. It maintains global settings 
+          Settings.llm=claude
+          Settings.embed_model=embed_model  
+          
+          # Function to process PDF from a buffer
+          def load_pdf_from_buffer(pdf_buffer: BytesIO):
+              # Open the PDF from the buffer using pdfplumber
+              with pdfplumber.open(pdf_buffer) as pdf:
+                  text_content = ""
+                  for page in pdf.pages:
+                      text_content += page.extract_text()  # Extract text from each page
+                  
+                  # Create a Document object with the extracted text
+                  if text_content.strip():
+                      return [Document(text=text_content)]  # Wrap the text in a Document object
+                      
+                  else:
+                      return []
+          
+          def upload_transcript():
+              st.header("Upload sample document")
+          
+              # File uploader widget
+              uploaded_file = st.file_uploader("Upload a file", type=["pdf", "docx"])
+          
+              if uploaded_file:
+                  # Convert file into a Document for LlamaIndex
+                  pdf_buffer = BytesIO(uploaded_file.read())
+                  documents = load_pdf_from_buffer(pdf_buffer)
+                  
+                  # Store embeddings to DocumentDB 
+                  db = documentdb_client['rag']
+                  embeddings_collection = db['ragdemo']
+                  embeddings_collection.drop()
+                  
+                  # Create a HNSW vector search index. You can also create an ivfflat index.
+                  embeddings_collection.create_index ([("embedding","vector")], 
+                      vectorOptions= {
+                          "type": "hnsw", 
+                          "similarity": "euclidean",
+                          "dimensions": 1536,
+                          "m": 16,
+                          "efConstruction": 64},
+                      name="vector_index")
+                  
+                  # Chunking out the data for embedding and create nodes
+                  sentence_splitter = SentenceSplitter(chunk_size=1024, chunk_overlap=10)
+                  Settings.text_splitter = sentence_splitter
+                  nodes= sentence_splitter.get_nodes_from_documents(documents)
+                  
+                  # Generate embedding for nodes
+                  for node in nodes:
+                      node_embedding = embed_model.get_text_embedding(node.get_content(metadata_mode="all"))
+                      node.embedding = node_embedding
+                  
+                  #Adding node information with embedding in Amazon Documentdb
+                  vector_store =AWSDocDbVectorStore(documentdb_client, db_name="rag", collection_name="ragdemo", index_name="vector_index")
+                  vector_store.add(nodes)
+                          
+                  st.success("File processed and embeddings stored in Amazon DocumentDB.")
+          
+          def q_and_a():
+              st.header("Ask a Question")
+          
+              # Context selection from stored embeddings
+              db = documentdb_client['rag']
+              embeddings_collection = db['ragdemo']
+              vector_store =AWSDocDbVectorStore(documentdb_client, db_name="rag", collection_name="ragdemo", index_name="vector_index")
+              index = VectorStoreIndex.from_vector_store(vector_store)
+          
+              # Initialize query engine 
+              query_engine = index.as_query_engine()
+              # Text input for question
+              question = st.text_input("Enter your question:")
+              
+              if question:
+                  st.write("### Answer:")
+                  # Placeholder for Amazon Bedrock integration
+                  # Use Bedrock for Q&A if available, otherwise fall back to local model
+                  response = query_engine.query(question)
+                  st.write(response.response)
+          
+          def main():    
+              # Streamlit App
+              st.title("RAG Q&A System with Amazon DocumentDB")
+              
+              # Initialize session state for page navigation
+              if "page" not in st.session_state:
+                  st.session_state.page = "upload"  # Default page
+                  
+                  
+              # Define a function to change the page in session state
+              def set_page(page_name):
+                  st.session_state.page = page_name
+                  
+                  
+              # Menu options
+              # Sidebar with navigation buttons
+              st.sidebar.title("Navigation")
+              if st.sidebar.button("Upload sample document"):
+                  set_page("upload")
+              if st.sidebar.button("Q&A System"):
+                  set_page("qa")
+              
+              if st.session_state.page == "upload":
+                  upload_transcript()
+              elif st.session_state.page == "qa":
+                  q_and_a()
+              else:
+                  st.write("Select a menu option to proceed.")
+          
+          # Invoke main
+          if __name__ == "__main__":
+              main()
+          
+          EOF
+            
+            # Make the Python script executable
+            chmod +x /home/ssm-user/rag-llama-DocDB.py
+            sudo chown -R ssm-user:ssm-user /home/ssm-user/
+          }
+          
+          function start_app { 
+              
+            # Run the Streamlit app as ssm-user
+            sudo su - ssm-user -c "streamlit run /home/ssm-user/rag-llama-DocDB.py >> output.log 2>&1 &"
+  
+            # Log verification output
+            echo "Python script executed. Output stored in /home/ssm-user/output.txt"
+          }
+          
+          update_yum
+          setup_python
+          install_python_dependency
+          create_ssmuser
+          get_tls_certificate
+          write_app_file
+          start_app  
+          
   DocumentDBCluster:
     Type: "AWS::DocDB::DBCluster"
     DeletionPolicy: Delete
@@ -212,14 +478,15 @@ Resources:
     Properties:
       DBClusterIdentifier: !Ref DocumentDBCluster
       DBInstanceIdentifier: !Sub ${AWS::StackName}-genai-docdb-instance1
-      DBInstanceClass: 'db.r6g.2xlarge'
+      DBInstanceClass: 'db.r6g.large'
     DependsOn: DocumentDBCluster  
 
+
   # Notebook Security Group
-  NotebookSecurityGroup:
+  EC2SecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties: 
-      GroupDescription: Sagemaker notebook Security Group
+      GroupDescription: Default SG for Ec2HostInstance
       VpcId: !Ref VPC
       
   # DocumentDB Security Group
@@ -229,8 +496,6 @@ Resources:
       GroupDescription: Amazon DocumentDB Security Group
       VpcId: !Ref VPC
 
-
-  
   InboundRule:  
     Type: AWS::EC2::SecurityGroupIngress
     Properties:   
@@ -240,52 +505,26 @@ Resources:
       ToPort: 27017
       SourceSecurityGroupId:
         Fn::GetAtt:
-          - NotebookSecurityGroup
+          - EC2SecurityGroup
           - GroupId
       GroupId:
         Fn::GetAtt:
           - DocumentDBSecurityGroup
           - GroupId
+          
+  InboundEC2Rule:  
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:   
+      IpProtocol: tcp
+      Description: String
+      FromPort: 8501
+      ToPort: 8501
+      CidrIp: 0.0.0.0/0
+      GroupId:
+        Fn::GetAtt:
+          - EC2SecurityGroup
+          - GroupId
   
-  OutboundRule1:
-   Type: AWS::EC2::SecurityGroupEgress
-   Properties:
-     Description: String
-     IpProtocol: tcp
-     FromPort: 27017
-     ToPort: 27017
-     DestinationSecurityGroupId:
-       Fn::GetAtt:
-        - NotebookSecurityGroup
-        - GroupId
-     GroupId:
-       Fn::GetAtt:
-        - DocumentDBSecurityGroup
-        - GroupId      
-  OutboundRule2:
-   Type: AWS::EC2::SecurityGroupEgress
-   Properties:
-     Description: String
-     IpProtocol: tcp
-     FromPort: 27017
-     ToPort: 27017
-     DestinationSecurityGroupId:
-       Fn::GetAtt:
-        - DocumentDBSecurityGroup
-        - GroupId
-     GroupId:
-       Fn::GetAtt:
-        - NotebookSecurityGroup
-        - GroupId
-  MyFlowLog:
-   Type: AWS::EC2::FlowLog
-   Properties:
-     DeliverLogsPermissionArn: !GetAtt FlowRole.Arn
-     LogGroupName: FlowLogsGroup
-     ResourceId: !Ref VPC
-     ResourceType: VPC
-     TrafficType: ALL
-
 Outputs:
         
   DocumentDBClusterEndpoint:
@@ -296,25 +535,14 @@ Outputs:
     Description: Deployed Region
     Value: !Ref AWS::Region
 
-
-  SageMakerNotebookURL:
-    Description: SageMaker Notebook Instance
-    Value: !Join
-      - ''
-      - - 'https://console.aws.amazon.com/sagemaker/home?region='
-        - !Ref AWS::Region
-        - '#/notebook-instances/openNotebook/'
-        - !GetAtt NotebookInstance.NotebookInstanceName
-        - '?view=classic'
-
   DBSecret:
     Description: Name of the DB secret in Secrets Manager
     Value: !Sub DBSecret-${AWS::StackName}
-
-  NotebookRole:
-    Description: Sagemaker notebook instance role
-    Value: !Ref NBRole
-
-  NotebookRoleArn:
-    Description: Sagemaker Notebook instance role ARN
-    Value: !GetAtt NBRole.Arn
+  
+  EC2HostInstance:
+    Description: The instance ID of the EC2 instance host
+    Value: !Ref EC2HostInstance
+    
+  PublicURL:
+    Description: "The HTTP URL for the Q and A application"
+    Value: !Sub "http://${EC2HostInstance.PublicIp}:8501"
