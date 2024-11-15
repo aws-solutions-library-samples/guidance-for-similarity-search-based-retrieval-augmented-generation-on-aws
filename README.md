@@ -155,7 +155,7 @@ Deployment validation can be done using AWS Console or AWS CLI
 
 ![Q&A1 image](assets/qna1.png)
 
-![Q&A image](assets/qna1.png)
+![Q&A image](assets/qna2.png)
 
 
 ## Next Steps
