@@ -138,8 +138,8 @@ Deployment validation can be done using AWS Console or AWS CLI
   
 ## Running the Guidance
 
-1. Open the Q&A application public URL form Cloudformation outputs tab.
-2. Click on the upload sample document form Left Navigation bar.
+1. Open the Q&A application public URL from Cloudformation outputs tab.
+2. Click on the **Upload sample document** from Left Navigation bar.
    
 ![upload image](assets/upload.png)
 
@@ -149,13 +149,18 @@ Deployment validation can be done using AWS Console or AWS CLI
 
 ![upload & Process image](assets/upload_process.png)
 
-5. Click on the Q&A System form Left Navigation bar 
+5. Click on the **Q&A System** from Left Navigation bar 
 
-6. Enter your question for your document and get the response form application
+6. Enter your question for your document and get the response form application. 
 
+   Few sample questions:
+   - "When these results were announced?"
+   - "How much was AnyCompany revenue in Q3?"
+   - "What is the AnyCompany outlook for next year?"
+   
 ![Q&A1 image](assets/qna1.png)
 
-![Q&A image](assets/qna2.png)
+
 
 
 ## Next Steps
