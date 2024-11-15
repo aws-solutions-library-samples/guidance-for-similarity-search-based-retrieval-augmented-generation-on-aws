@@ -26,15 +26,15 @@ The  architecture diagram outlines an approach to effectively handle user querie
 
 The Q&A application follows these steps to provide responses to your questions:
 
-1. The Jupyter notebook loads enterprise or external data which lies outside of the large language model’s (LLM) training data to augment the trained model. It can come from various sources including APIs, databases, or document repositories.
-2. The notebook preprocesses data by removing inconsistencies and errors, splitting large documents into manageable sections, and chunking the text into smaller, coherent pieces for easier processing. 
-3. Notebook generates text embeddings for relevant data using the Titan text embedding models on **Amazon Bedrock**.
-4. Notebook fetches credentials from **AWS Secrets Manager** to connect to **Amazon DocumentDB**.
-5. Notebook creates a vector search index in **Amazon DocumentDB** and uses LlamaIndex to load the generated text embeddings along with other relevant information into a **DocumentDB** collection.
-6. User submits a natural language query for finding relevant answers to Jupyter notebook.
-7. Notebook fetches credentials from **AWS Secrets Manager** to connect to **Amazon DocumentDB**.
+1. User uploads enterprise or external data which lies outside of the large language model’s (LLM) training data to augment the trained model. It can come from various sources including APIs, databases, or document repositories.
+2. The application preprocesses data by removing inconsistencies and errors, splitting large documents into manageable sections, and chunking the text into smaller, coherent pieces for easier processing. 
+3. Application generates text embeddings for relevant data using the Titan text embedding models on **Amazon Bedrock**.
+4. Application fetches credentials from **AWS Secrets Manager** to connect to **Amazon DocumentDB**.
+5. Application creates a vector search index in **Amazon DocumentDB** and uses LlamaIndex to load the generated text embeddings along with other relevant information into a **DocumentDB** collection.
+6. User submits a natural language query for finding relevant answers to web application.
+7. Application fetches credentials from **AWS Secrets Manager** to connect to **Amazon DocumentDB**.
 8. The user’s question is transformed into a vector embedding in notebook using the same embedding model that was used during data ingestion workflow. 
-9. Notebook passes the query to LlamaIndex query engine. LlamaIndex is a data orchestration tool that helps with data indexing and querying. LlamaIndex performs a similarity search in the DocumentDB collection using the query embedding. The search retrieves the most relevant documents based on their proximity to the query vector.
+9. Application passes the query to LlamaIndex query engine. LlamaIndex is a data orchestration tool that helps with data indexing and querying. LlamaIndex performs a similarity search in the DocumentDB collection using the query embedding. The search retrieves the most relevant documents based on their proximity to the query vector.
 10. LlamaIndex query engine augments this retrieved information, along with the user's question as a prompt to the LLM model on **Amazon Bedrock** to generate more accurate and informed responses.
 
 ### Cost
@@ -50,7 +50,7 @@ The following table provides a sample cost breakdown for deploying this Guidance
 | Amazon DocumentDB Instance Based Cluster | Standard Cluster Configuration, 1 X Instance type (db.r6g.large), Storage (10 GB), I/Os (2 millions), Backup 1 Day | $193.50 |
 | Amazon Bedrock - Titan Text Embeddings model | Number of Input tokens (100 million per month) | $10.00 |
 | Amazon Bedrock - Anthropic Claude | Number of Input tokens (100 million per month) | $10.00 |
-| Amazon SageMaker | Storage (General Purpose SSD (gp2)), Instance name (ml.t3.large), Number of data scientist(s) (1), Number of On-Demand Notebook instances per data scientist (1) | $72.28 |
+| Amazon EC2 | Operating system (Linux), Workload (Consistent, Number of instances: 1), Instance name (m5.large), EBS Storage amount (8 GB) | $36.41 |
 | AWS Secrets Manager | 1 Secret, 1 million requests/month | $5.40 |
 
 ## Prerequisites
