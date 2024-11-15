@@ -140,10 +140,22 @@ Deployment validation can be done using AWS Console or AWS CLI
 
 1. Open the Q&A application public URL form Cloudformation outputs tab.
 2. Click on the upload sample document form Left Navigation bar.
+   
+![upload image](assets/upload.png)
+
 3. Download the Q3 earnings call [transcript](source/Q3-2024-result-transcript.pdf) of AnyCompany.  You can also use any other document for Q&A.
-4. Upload the document
+
+4. Upload the document. Document will be processed and embeddings will be stored in Amazon DocumentDB.
+
+![upload & Process image](assets/upload_process.png)
+
 5. Click on the Q&A System form Left Navigation bar 
-6. Enter your Question for your sample document and get the response
+
+6. Enter your question for your document and get the response form application
+
+![Q&A1 image](assets/qna1.png)
+
+![Q&A image](assets/qna1.png)
 
 
 ## Next Steps
