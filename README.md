@@ -127,25 +127,24 @@ Deployment validation can be done using AWS Console or AWS CLI
 ### Using AWS Console
 
 1. Open CloudFormation console and verify the status of the template with your stack name provided earlier. The stack creation status should be **CREATE_COMPLETE**
-2. If your deployment is sucessful, you should see an active Amazon DocumentDB cluster and Sagemaker running in your account. You can locate the DocumentDB Cluster Endpoint and Sagemaker Notebook URL from outputs tab of Stack.
+2. If your deployment is sucessful, you should see an active Amazon DocumentDB cluster and Amazon EC2 instance running in your account.
+3. You can locate the Q&A application public URL from outputs tab of stack.
 
 ### Using AWS CLI
 
 1. Open CloudFormation console and verify the status of the template with the name starting with your stack name.
-2. If deployment is successful, you should see an active Amazon DocumentDB cluster and Sagemaker instance running in your account.
+2. If your deployment is sucessful, you should see an active Amazon DocumentDB cluster and Amazon EC2 instance running in your account.
 3. Run the following CLI command to validate the deployment: ```aws cloudformation describe <stack name>```
   
 ## Running the Guidance
 
-1. Capture the  Amazon DocumentDB cluster endpoint, region name, secret name form Cloudformation outputs tab.
-2. Locate and open  Amazon Sagemake Notebook URL form Cloudformation outputs tab.
-3. Download IPython notebook [data-rag-aws-llama-docdb.ipynb](source/data-rag-aws-llama-docdb.ipynb)
-4. Click on the upload on Notebook instance page and upload the IPython notbook which you downloaded in previos step. 
-5. Download the Q3 earnings call [transcript](source/Q3-2024-result-transcript.pdf) of AnyCompany.
-6. Now upload the sample transcript on Notebook instance page same as step (4) above
-7. Open the IPython notebook  
-8. Update the DocumentDB cluster endpoint, region name, secret name on IPython notebook which you captured in step (1)
-9. Execute the IPython notebook step by step. 
+1. Open the Q&A application public URL form Cloudformation outputs tab.
+2. Click on the upload sample document form Left Navigation bar.
+3. Download the Q3 earnings call [transcript](source/Q3-2024-result-transcript.pdf) of AnyCompany.  You can also use any other document for Q&A.
+4. Upload the document
+5. Click on the Q&A System form Left Navigation bar 
+6. Enter your Question for your sample document and get the response
+
 
 ## Next Steps
 
