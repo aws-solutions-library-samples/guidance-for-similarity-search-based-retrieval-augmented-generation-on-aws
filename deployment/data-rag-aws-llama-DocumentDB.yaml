@@ -176,9 +176,6 @@ Resources:
   
   EC2HostInstance:
     Type: AWS::EC2::Instance
-    DependsOn:
-      - EC2SecurityGroup
-      - DocumentDBSecurityGroup
     Metadata:
       AWS::CloudFormation::Init:
         config:
@@ -195,7 +192,6 @@ Resources:
           DeviceIndex: "0"
           GroupSet:
             - Ref: EC2SecurityGroup
-            - Ref: DocumentDBSecurityGroup
           SubnetId:
             Ref: PublicSubnetOne
       UserData:
@@ -481,19 +477,11 @@ Resources:
       DBInstanceClass: 'db.r6g.large'
     DependsOn: DocumentDBCluster  
 
-
-  # Notebook Security Group
-  EC2SecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties: 
-      GroupDescription: Default SG for Ec2HostInstance
-      VpcId: !Ref VPC
-      
-  # DocumentDB Security Group
+  # Security Group for DocumentDB
   DocumentDBSecurityGroup:
     Type: AWS::EC2::SecurityGroup
-    Properties: 
-      GroupDescription: Amazon DocumentDB Security Group
+    Properties:
+      GroupDescription: "Security Group for DocumentDB, allowing access on port 27017 from EC2 instances"
       VpcId: !Ref VPC
 
   InboundRule:  
@@ -511,19 +499,49 @@ Resources:
         Fn::GetAtt:
           - DocumentDBSecurityGroup
           - GroupId
-          
-  InboundEC2Rule:  
-    Type: AWS::EC2::SecurityGroupIngress
-    Properties:   
-      IpProtocol: tcp
-      Description: String
-      FromPort: 8501
-      ToPort: 8501
-      CidrIp: 0.0.0.0/0
-      GroupId:
-        Fn::GetAtt:
-          - EC2SecurityGroup
-          - GroupId
+  
+  OutboundRule:
+   Type: AWS::EC2::SecurityGroupEgress
+   Properties:
+     Description: String
+     IpProtocol: tcp
+     FromPort: 27017
+     ToPort: 27017
+     DestinationSecurityGroupId:
+       Fn::GetAtt:
+        - EC2SecurityGroup
+        - GroupId
+     GroupId:
+       Fn::GetAtt:
+        - DocumentDBSecurityGroup
+        - GroupId      
+
+  # Security Group for EC2
+  EC2SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "Security Group for EC2 instance, allowing YUM, WGET, and web application traffic"
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 8501
+          ToPort: 8501
+          CidrIp: 0.0.0.0/0  
+      SecurityGroupEgress:
+        # Allow outbound traffic for YUM and WGET (HTTP)
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        # Allow outbound traffic for SSM, YUM and WGET (HTTPS)
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 27017
+          ToPort: 27017
+          DestinationSecurityGroupId: !Ref DocumentDBSecurityGroup
   
 Outputs:
         
