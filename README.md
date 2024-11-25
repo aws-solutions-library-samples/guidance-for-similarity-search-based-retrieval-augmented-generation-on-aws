@@ -27,7 +27,7 @@ The  architecture diagram outlines an approach to effectively handle user querie
 The Q&A application follows these steps to provide responses to your questions:
 
 1. User uploads enterprise or external data which lies outside of the large language model’s (LLM) training data to augment the trained model. It can come from various sources including APIs, databases, or document repositories.
-2. The application preprocesses data by removing inconsistencies and errors, splitting large documents into manageable sections, and chunking the text into smaller, coherent pieces for easier processing. 
+2. The application hosted on Amazon EC2 preprocesses data by removing inconsistencies and errors, splitting large documents into manageable sections, and chunking the text into smaller, coherent pieces for easier processing. 
 3. Application generates text embeddings for relevant data using the Titan text embedding models on **Amazon Bedrock**.
 4. Application fetches credentials from **AWS Secrets Manager** to connect to **Amazon DocumentDB**.
 5. Application creates a vector search index in **Amazon DocumentDB** and uses LlamaIndex to load the generated text embeddings along with other relevant information into a **DocumentDB** collection.
