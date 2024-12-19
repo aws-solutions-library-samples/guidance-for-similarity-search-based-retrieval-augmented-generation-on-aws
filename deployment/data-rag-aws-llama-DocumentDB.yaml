@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: Template to provision DocumentDB cluster and Webapp on EC2 instance for RAG/semantic search solution
+Description: Template to provision DocumentDB cluster and Webapp on EC2 instance for RAG/semantic search solution (SO9584)
 
 Metadata:
   AWS::CloudFormation::Interface:
